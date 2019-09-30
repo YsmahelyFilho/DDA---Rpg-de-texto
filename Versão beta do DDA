@@ -1,0 +1,1537 @@
+#include<rlutil.h>
+#include<stdlib.h>
+#include<stdio.h>
+#include<math.h>
+#include<locale.h>
+#include<string.h>
+#include<time.h>
+
+// If you're seeing this in GitHUB, I'll translate this code eventually.As of now, it's in Portuguese(BR), my native language.
+
+    struct CharData {
+        char sex, trait, e_a, o_a, O_A; // Personalidades e gêneros dos personagens
+        char *name[13];            // Os nomes deles
+        char *eua[3];              // Indica o tipo de artigo (Seu/Sua)
+        int stat[6];               // Guia: 1-Ataque, 2-Magia, 3-Defesa, 4-Resistência, 5-Agilidade, 6-Sorte (-1 na chamada)
+        };
+
+    struct CharData Cav, Mag, Arq;
+
+    char *area[10];
+
+    // As variáveis abaixo mostram a quantia dos items no inventário. Para não ter que criar várias 'booleanas' que diriam
+    // se o item está ou não no inventário, há uma função própria de inventário que não mostra o item se sua quantidade atual
+    // for zero (Ao usar todas as poções, você não vê 'Poções x 0' na lista)
+    // ID dos items: 1-Poção de cura; 2-Pão; 3-Pedras ; 4-Runas de gelo ; 5- ; 6- ; 7- ; 8- ; 9- ; 10-
+    int ID1q, ID2q, ID3q, ID4q, ID5q, ID6q;
+
+    // O jogo precisa de uma loja, ainda mais sendo um RPG, então pelo caminho você encontrará diversos e estranhos
+    // vendedores. Como se consegue dinheiro? Derrote monstros, fique com os espólios, seja feliz.
+    // Mas não vacile. Ações ruins trazem cosequências ruins. Tipo ficar roubando de todo mundo.
+
+    // A versão beta ainda não possui ouro implementado devido não haver uso para ele ainda
+
+    int monie, karma;
+
+    // Cada personagem possui sua especialidade: Cavaleiro - É durável, Mago - Cura e causa dano mágico, Arqueiro- Arqueiro.
+    // As seguintes variáveis são inevitavelmente 'booleanas' e indicam se o personagem destravou ou não certas habilidade
+    // ID das habilidades:
+    // Cavaleiro: 1-Corte violento, 2-?? , 3-??
+    // Mago: 1-Remendar , 2-Bola de fogo, 3-Congelar, 4-??
+    // Arqueiro: 1-Disparo duplo, 2-?? , 3-??
+    int CavSk1 = 1, CavSk2, MagSk1 = 1, MgSk2, ArqSk1 = 1, ArqSk2;
+
+    // Aqui são contabilizados os bônus aplicados as habilidades (iniciar com zero economiza tempo)
+    int RemendoB = 0, MCorteB = 0;
+
+    // Cada habilidade tem um número limitado de usos por área
+    int CavSkU1, CavSkU2, MagSkU1, MgSkU2, ArqSkU1, ArqSkU2;
+
+    // Aqui temos os pontos de vida, esses foram escolhidos arbitrariamente
+    int CavHP = 45, MagHP = 28, ArqHP = 35;
+
+    // Variáveis dos inimigos
+    int EnemyHP, EnemyN, tropa, dano;
+    char *nomeI[20];
+
+void Inventario ();
+
+void EstadoGrupo();
+
+void CharCreation()
+{
+    int CVswM = 0, MGswM = 0, ARswM = 0, AllOK = 0, i1 = 0, i2 = 0, i3 = 0, i = 0; // Switches dos loops
+
+   /* char uchar, CVsx, MGsx, ARsx, CVtr, MGtr, ARtr;
+    char e_a1, e_a2, e_a3, o_a1, o_a2, o_a3, *eua[] = {"eu", "ua"}; // Pronomes
+    int p1, p2, p3; // Guia para 'eu's e 'ua's
+    char CVname[13], MGname[13], ARname[13];
+    int CVstat[] = {7, 1, 7, 2, 3, 4}, MGstat[] = {2, 6, 3, 6, 4, 5}, ARstat[] = {4, 4, 4, 5, 7, 4}; // Arrays de atributos
+            Guia de atributos: Em ordem -> Ataque, Magia, Defesa, Resistência, Agilidade, Sorte.
+     // Variáveis de intuito didático (Mostra a possível economia ao se usar structs)
+    */
+
+    setlocale(LC_ALL, "Portuguese");  // Permite acentos (agudo, circumflexo, etc) e outros caracteres.
+
+    setColor(7);  // Muda a cor da fonte para branco. Meramente um capricho.
+
+    puts("\t\tAviso : Essa é uma versão beta voltada a fins didáticos (checar arquivo em c), portanto não se \n"
+         "encontra em seu estado completo. Para garantir que o projeto fique minimamente divertido, os heróis são\n"
+         "imortais e possuem uso ilimitado de habilidades. Por enquanto...  \n"
+         "Caso queira relatar algum bug ou tenha alguma sugestão para conteúdo futuro, \n"
+         "fica o e-mail para contato: ysmahelyfilho@gmail.com\n"
+         "A translation to english is coming as soon as at least half the game is complete!\n\n");
+
+    printf("Seja bem vindo, aventureiro(a), ao Despertar dos Ancestrais (ou DDA, pra encurtar).\n"
+         "Sua missão é encontrar a fonte do desbalanço de mana que assola seu reino, mas como\n"
+         "todos os aventureiros com potencial foram caçados pelas forças das trevas ou se aliaram\n"
+         "ás mesmas, você controlará um grupo de novatos indo investigar o misterioso assalto ao castelo: \n");
+        printf("\tUm ");
+            setColor(12);  // Esses setcolor servem para dar cor ao projeto e fazem parte da biblioteca rlutil
+        printf("cavaleiro");
+            setColor(7);
+        printf(", um ");
+            setColor(9);
+        printf("mago ");
+            setColor(7);
+        printf("e um ");
+            setColor(10);
+        printf("arqueiro");
+            setColor(7);
+            puts(".");
+
+            system("pause");
+
+            puts(""); // Strings aparentemente não conseguem ficar guardadas com os acentos
+            puts("Só uma coisinha... Evite usar acentos nos nomes! Provavelmente as forças das trevas não gostam de \n"
+                         "gramática ou coisa assim, pois sempre corrompem nomes que os possuem");
+            puts("");
+
+            system("pause");
+
+        while(AllOK < 1) {
+            while(CVswM < 1) {
+
+                puts("\tO que pode me dizer sobre...");
+                printf("\t\t\t\t... seu ");
+                    setColor(12);
+                printf("cavaleiro");
+                    setColor(7);
+                puts("?");
+
+            puts("\tÉ um rapaz / É uma moça (Digite R ou M, em maiúsculo)");
+            // Determina parcialmente os textos daqui pra frente
+                while(!i1) {
+                    scanf("%c%*c", &Cav.sex);
+                           if(Cav.sex == 'R') {
+                                Cav.e_a = 'e';
+                                Cav.o_a = 'o';
+                                Cav.O_A = 'O';
+                                *Cav.eua = "eu";
+                                printf("\tOh sim, seu nobre herói...\n");
+                                i1 = 1;
+                            }
+                            if(Cav.sex == 'M') {
+                                Cav.e_a = 'a';
+                                Cav.o_a = 'a';
+                                Cav.O_A = 'A';
+                                *Cav.eua = "ua";
+                                printf("\tOh sim, sua jovem ");
+                                    setColor(12);
+                                printf("cavaleira");
+                                    setColor(7);
+                                printf("...\n");
+                                i1 = 1;
+                            }else {
+                            }
+                    }
+
+                    printf("\tEl%c se chama... (max.: 12 caracteres)\n", Cav.e_a);  // Pega o nome do personagem
+
+                    while(!i2) {
+                        scanf("%s%*c", &Cav.name);
+                            if(strlen(Cav.name) < 13) {
+                                i2 = 1;
+                    } else {
+                        continue;
+                    }}
+
+                    printf("\tÉ valente [+ 1 DEF], diligente [+ 1 ATK] ou imprudente [+ 1 SOR] ?\n");
+                    puts("\t(Digite, em maiúsculo, a inicial da personalidade desejada)");
+
+                    while(!i3) {
+                        scanf("%c%*c", &Cav.trait);
+
+                            if(Cav.trait == 'V') {
+                                Cav.stat[0] = 7;
+                                Cav.stat[1] = 1;
+                                Cav.stat[2] = 8;
+                                Cav.stat[3] = 2;
+                                Cav.stat[4] = 3;
+                                Cav.stat[5] = 4;
+                                i3 = 1;
+                                }
+                            else if(Cav.trait == 'D') {
+                                Cav.stat[0] = 8;
+                                Cav.stat[1] = 1;
+                                Cav.stat[2] = 7;
+                                Cav.stat[3] = 2;
+                                Cav.stat[4] = 3;
+                                Cav.stat[5] = 4;
+                                i3 = 1;
+                                }
+                            else if(Cav.trait == 'I') {
+                                Cav.stat[0] = 7;
+                                Cav.stat[1] = 1;
+                                Cav.stat[2] = 7;
+                                Cav.stat[3] = 2;
+                                Cav.stat[4] = 3;
+                                Cav.stat[5] = 5;
+                                i3 = 1;
+                                }
+                    }
+                CVswM = 1;
+            }
+
+            if(Cav.trait == 'V') {
+                    printf("\t%s, ", Cav.name);
+                        setColor(12);
+                    printf("Cavaleir%c ", Cav.o_a);
+                        setColor(7);
+                    printf("valente...\n\n");
+            }
+            else if(Cav.trait == 'D') {
+                    printf("\t%s, ", Cav.name);
+                        setColor(12);
+                    printf("Cavaleir%c ", Cav.o_a);
+                        setColor(7);
+                    printf("diligente...\n\n");
+            }
+            else if(Cav.trait == 'I') {
+                    printf("\t%s, ", Cav.name);
+                        setColor(12);
+                    printf("Cavaleir%c ", Cav.o_a);
+                        setColor(7);
+                    printf("imprudente...\n\n");
+            }
+
+        i1 = i2 = i3 = 0;
+
+        printf("\n\t\t... e quanto a seu ");
+            setColor(9);
+        printf("mago");
+            setColor(7);
+        puts("?");
+
+        while(MGswM != 1)  {
+            printf("\tÉ um rapaz / É uma moça (Digite R ou M, em maiúsculo)\n");
+
+            while(!i1) {
+                    scanf("%c", &Mag.sex);
+                    if(Mag.sex == 'R') {
+                        Mag.e_a = 'e';
+                        Mag.o_a = 'o';
+                        Mag.O_A = 'O';
+                        *Mag.eua = "eu";
+                        printf("\tUm adepto da magia divina...\n");
+                        i1 = 1;
+                    }else if(Mag.sex == 'M') {
+                        Mag.e_a = 'a';
+                        Mag.o_a = 'a';
+                        Mag.O_A = 'A';
+                        *Mag.eua = "ua";
+                        printf("\tSua feiticeira...\n");
+                        i1 = 1;
+                    }else {
+                    }
+            }
+
+                printf("\tEl%c se chama... (max.: 12 caracteres)\n", Mag.e_a);  // Pega o nome do personagem
+                    while(!i2) {
+                        scanf("%s%*c", &Mag.name);
+                            if(strlen(Mag.name) < 13) {
+                                i2 = 1;
+                    } else {
+                        continue;
+                    }}
+
+                printf("\tEl%c é tímid%c [+ 1 MAG], misterios%c [+ 1 AGI], avoad%c [+ 1 SOR] ?\n", Mag.e_a, Mag.o_a, Mag.o_a, Mag.o_a);
+                puts("\t(Digite, em maiúsculo, a inicial da personalidade desejada)");
+
+                    while(!i3) {
+                        scanf("%c%*c", &Mag.trait);
+
+                            if(Mag.trait == 'T') {
+                                Mag.stat[0] = 2;
+                                Mag.stat[1] = 7;
+                                Mag.stat[2] = 3;
+                                Mag.stat[3] = 6;
+                                Mag.stat[4] = 4;
+                                Mag.stat[5] = 5;
+                                i3 = 1;
+                                }
+                            else if(Mag.trait == 'M') {
+                                Mag.stat[0] = 2;
+                                Mag.stat[1] = 6;
+                                Mag.stat[2] = 3;
+                                Mag.stat[3] = 6;
+                                Mag.stat[4] = 5;
+                                Mag.stat[5] = 5;
+                                i3 = 1;
+                                }
+                            else if(Mag.trait == 'A') {
+                                Mag.stat[0] = 2;
+                                Mag.stat[1] = 6;
+                                Mag.stat[2] = 3;
+                                Mag.stat[3] = 6;
+                                Mag.stat[4] = 4;
+                                Mag.stat[5] = 6;
+                                i3 = 1;
+                                }
+                        }
+                MGswM = 1;
+        }
+
+            if(Mag.trait == 'T') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("tímid%c...\n\n", Mag.o_a);
+            }
+            else if(Mag.trait == 'M') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("misterios%c...\n\n", Mag.o_a);
+            }
+            else if(Mag.trait == 'A') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("avoad%c...\n\n", Mag.o_a);
+            }
+
+        i1 = i2 = i3 = 0;
+
+        printf("\n\t\t... seu ");
+            setColor(10);
+        printf("arqueiro");
+            setColor(7);
+        puts("?");
+
+            while(ARswM != 1) {
+
+                puts("\tÉ um rapaz / É uma moça (Digite R ou M, em maiúsculo)");
+
+                    while(!i1) {
+                    scanf("%c%*c", &Arq.sex);
+                        if(Arq.sex == 'R') {
+                            Arq.e_a = 'e';
+                            Arq.o_a = 'o';
+                            Arq.O_A = 'O';
+                            *Arq.eua = "eu";
+                            printf("\tUm caçador nato...\n");
+                            i1 = 1;
+                        }else if(Arq.sex == 'M') {
+                            Arq.e_a = 'a';
+                            Arq.o_a = 'a';
+                            Arq.O_A = 'A';
+                            *Arq.eua = "ua";
+                            printf("\tHabilidosa por natureza...\n");
+                            i1 = 1;
+                        }else {
+                        }
+                }
+
+                     printf("\tEl%c se chama... (max.: 12 caracteres)\n", Arq.e_a);  // Pega o nome do personagem
+                        while(!i2) {
+                            scanf("%s%*c", &Arq.name);
+                                if(strlen(Arq.name) < 13) {
+                                    i2 = 1;
+                        } else {
+                            continue;
+                        }}
+
+                    printf("\tEl%c é astut%c [+ 1 ATK], esgui%c [+ 1 AGI], superticios%c [+ 1 SOR] ?\n", Arq.e_a, Arq.o_a, Arq.o_a, Arq.o_a);
+                    puts("\t(Digite a inicial da personalidade desejada)");
+
+                    while(!i3) {
+                            scanf("%c%*c", &Arq.trait);
+
+                                if(Arq.trait == 'A') {
+                                    Arq.stat[0] = 5;
+                                    Arq.stat[1] = 4;
+                                    Arq.stat[2] = 4;
+                                    Arq.stat[3] = 5;
+                                    Arq.stat[4] = 7;
+                                    Arq.stat[5] = 4;
+                                    i3 = 1;
+                                    }
+                                else if(Arq.trait == 'E') {
+                                    Arq.stat[0] = 4;
+                                    Arq.stat[1] = 4;
+                                    Arq.stat[2] = 4;
+                                    Arq.stat[3] = 5;
+                                    Arq.stat[4] = 8;
+                                    Arq.stat[5] = 4;
+                                    i3 = 1;
+                                    }
+                                else if(Arq.trait == 'S') {
+                                    Arq.stat[0] = 4;
+                                    Arq.stat[1] = 4;
+                                    Arq.stat[2] = 4;
+                                    Arq.stat[3] = 5;
+                                    Arq.stat[4] = 7;
+                                    Arq.stat[5] = 5;
+                                    i3 = 1;
+                                    }
+                        }
+                        ARswM = 1;
+                }
+
+                if(Arq.trait == 'A') {
+                    printf("\t%s, ", Arq.name);
+                            setColor(10);
+                    printf("Arqueir%c ", Arq.o_a);
+                        setColor(7);
+                    printf("astut%c...\n\n", Arq.o_a);
+                }
+                else if(Arq.trait == 'E') {
+                    printf("\t%s, ", Arq.name);
+                            setColor(10);
+                    printf("Arqueir%c ", Arq.o_a);
+                        setColor(7);
+                    printf("esgui%c...\n\n", Arq.o_a);
+                }
+                else if(Arq.trait == 'S') {
+                    printf("\t%s, ", Arq.name);
+                            setColor(10);
+                    printf("Arqueir%c ", Arq.o_a);
+                        setColor(7);
+                    printf("superticios%c...\n\n", Arq.o_a);
+                }
+
+        i1 = i2 = i3 = 0;
+
+        printf("Estes são os membros da sua equipe:\n");
+
+            if(Cav.trait == 'V') {
+                printf("\t%s, ", Cav.name);
+                    setColor(12);
+                printf("Cavaleir%c ", Cav.o_a);
+                    setColor(7);
+                printf("valente\n\n");
+            }
+            else if(Cav.trait == 'D') {
+                printf("\t%s, ", Cav.name);
+                    setColor(12);
+                printf("Cavaleir%c ", Cav.o_a);
+                    setColor(7);
+                printf("diligente\n\n");
+            }
+            else if(Cav.trait == 'I') {
+                printf("\t%s, ", Cav.name);
+                    setColor(12);
+                printf("Cavaleir%c ", Cav.o_a);
+                    setColor(7);
+                printf("imprudente\n\n");
+            }
+
+            if(Mag.trait == 'T') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("tímid%c\n\n", Mag.o_a);
+            }
+            else if(Mag.trait == 'M') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("misterios%c\n\n", Mag.o_a);
+            }
+            else if(Mag.trait == 'A') {
+                printf("\t%s, ", Mag.name);
+                        setColor(9);
+                printf("Mag%c ", Mag.o_a);
+                    setColor(7);
+                printf("avoad%c\n\n", Mag.o_a);
+            }
+
+            if(Arq.trait == 'A') {
+                printf("\t%s, ", Arq.name);
+                    setColor(10);
+                printf("Arqueir%c ", Arq.o_a);
+                    setColor(7);
+                printf("astut%c\n\n", Arq.o_a);
+            }
+            else if(Arq.trait == 'E') {
+                printf("\t%s, ", Arq.name);
+                        setColor(10);
+                printf("Arqueir%c ", Arq.o_a);
+                    setColor(7);
+                printf("esgui%c\n\n", Arq.o_a);
+            }
+            else if(Arq.trait == 'S') {
+                printf("\t%s, ", Arq.name);
+                        setColor(10);
+                printf("Arqueir%c ", Arq.o_a);
+                    setColor(7);
+                printf("superticios%c\n\n", Arq.o_a);
+            }
+            AllOK = 1;
+        }
+
+        system("pause");
+        puts("");
+
+        puts("\tDevido a sua humilde natureza, a equipe cresceu afastada do castelo real, o que torna a jornada \n"
+             "longínqua e perigosa. Portanto, sua primeira parada é num santuário próximo á fronteira. \n"
+             "Abandonado, mas ainda iluminado pela energia da deusa regente...\n");
+
+        system("pause");
+        puts("");
+    }
+
+    void TextoInformativo();
+
+    void InimigoAleatorio() {
+        int tropa = 0;
+        srand( (unsigned)time(NULL) );
+
+            if (*area == "santuario") {
+                tropa = 1 + (rand() % 4 );
+
+                if (tropa == 1){
+                    EnemyHP = 20;
+                    EnemyN = 2;
+                    *nomeI = "morcegos";
+                }
+                else if (tropa == 2){
+                    EnemyHP = 25;
+                    EnemyN = 1;
+                    *nomeI = "goblin";
+                }
+                else if (tropa == 3){
+                    EnemyHP = 30;
+                    EnemyN = 1;
+                    *nomeI = "orc";
+                } else {
+                    EnemyHP = 10;
+                    EnemyN = 1;
+                    *nomeI = "morcego";
+                }
+            }
+
+        // Para criar novas áreas, adiciona-se novos if's que contém novos inimigos
+
+    }
+
+    void TurnoCavaleiro() {
+
+        int x1, tm; // Chamada de ID de item, Parceiro que receberá o efeito do item
+        char y1, z1; // Ação a ser tomada, Sub-ação
+
+        printf("O que s%s ", *Cav.eua);
+            setColor(12);
+        printf("cavaleir%c", Cav.o_a);
+            setColor(7);
+        puts(" fará?\n");
+
+    printf("/---PV atual: %d----------\n"
+           " (A)\tAtacar ...........|\n"
+           " (H)\tUsar habilidade ..|\n"
+           " (I)\tUsar item ........|\n"
+           "\\-------------------------\n", CavHP);
+
+           while(1){
+                scanf("%c", &y1);
+                if (y1 == 'A'){
+                    //Ataque normal
+                    dano = Cav.stat[0];
+                    EnemyHP -= dano;
+                        printf("\tS%s ", *Cav.eua);
+                            setColor(12);
+                        printf("cavaleir%c", Cav.o_a);
+                            setColor(7);
+                        printf(" brande sua espada contra o inimigo! %d pontos de dano!\n\n", dano);
+                        break;
+                }else if (y1 == 'H'){
+                    //Habilidades (de uso ilimitado por enquanto)
+                    puts("\tQue habilidade você usará?\n");
+                    printf("/--------------------------\n"
+                           " (M)\tMega Corte...........|\n"
+                           " (X)\tNenhuma..............|\n"
+                           "\\-------------------------\n");
+
+                        while(1){
+                            scanf("%c%*c", &z1);
+                            if(z1 == 'D'){
+                                puts("Um corte pesado!\n");
+                                dano = 8 + Cav.stat[0] / 2;
+                                EnemyHP -= dano;
+                                printf("%d pontos de dano!", dano);
+                                break;
+                            }else if(z1 == 'X')
+                                break;
+                            }
+
+                    break;
+
+
+                }else if (y1 == 'I') {
+                    printf("\tSeu inventário\n"
+                           "/-------------------------\n");
+                    if(ID1q > 0)
+                       printf("\tPoções de cura x %d (ID:1)\n", ID1q);
+                    else {}
+
+                    if(ID2q > 0)
+                       printf("\tPães x %d (ID:2)\n", ID2q);
+                    else {}
+
+                    printf("\tNão usar nada (ID:0)\n");
+
+                    printf("\\-------------------------\n");
+
+                    puts("\tDigite o ID do item que quer usar:\n");
+
+                    while(1){
+                    scanf("%d%*c", &x1);
+                        if (x1 == 0)
+                            break;
+                        else if (x1 == 1){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Cav.name);
+                                    ID1q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Mag.name);
+                                    ID1q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Arq.name);
+                                    ID1q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                        }
+                        else if (x1 == 2){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Cav.name);
+                                    ID2q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Mag.name);
+                                    ID2q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Arq.name);
+                                    ID2q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                        } }
+
+                } else
+                    continue;
+           }
+    }
+
+    void TurnoMago() {
+
+        int x2, tm;
+        char y2, z2;
+
+        printf("O que s%s ", *Mag.eua);
+            setColor(9);
+        printf("mag%c", Mag.o_a);
+            setColor(7);
+        puts(" fará?\n");
+
+        printf("/---PV atual: %d----------\n"
+           " (A)\tAtacar ...........|\n"
+           " (H)\tUsar habilidade ..|\n"
+           " (I)\tUsar item ........|\n"
+           "\\-------------------------\n", MagHP);
+
+           while(1){
+                scanf("%c", &y2);
+                if (y2 == 'A'){
+                    dano = Mag.stat[0]; // No futuro, um item (ou o nível 5) fará o seu mago atacar com dano mágico
+                    EnemyHP -= dano;
+                        printf("\tS%s ", *Mag.eua);
+                            setColor(9);
+                        printf("mag%c", Mag.o_a);
+                            setColor(7);
+                        printf(" bate com o cajado na cabeça de alguém! %d pontos de dano!\n\n", dano);
+                        break;
+
+                }else if (y2 == 'H'){
+                    puts("\tQue habilidade você usará?\n");
+                    printf("/--------------------------\n"
+                           " (R)\tRemendar.............|\n"
+                           " (X)\tNenhuma..............|\n"
+                           "\\-------------------------\n");
+
+                        while(1){
+                            scanf("%c%*c", &z2);
+                            if(z2 == 'R'){
+                                puts("Quem você precisa remendar?\n");
+
+                                while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou %d pontos de vida com o remendo", *Cav.name, Mag.stat[1] + RemendoB);
+                                    CavHP += Mag.stat[1] + RemendoB;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou %d pontos de vida com o remendo", *Mag.name, Mag.stat[1] + RemendoB);
+                                    MagHP += Mag.stat[1] + RemendoB;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou %d pontos de vida com o remendo", *Arq.name, Mag.stat[1] + RemendoB);
+                                    ArqHP += Mag.stat[1] + RemendoB;
+                                    break;
+                                }else
+                                    continue;  }
+
+
+                                break;
+                            }else if(z2 == 'X')
+                                break;
+                            }
+
+                    break;
+
+                }else if (y2 == 'I') {
+                    printf("\tSeu inventário\n"
+                           "/-------------------------\n");
+                    if(ID1q > 0)
+                       printf("\tPoções de cura x %d (ID:1)\n", ID1q);
+                    else {}
+
+                    if(ID2q > 0)
+                       printf("\tPães x %d (ID:2)\n", ID2q);
+                    else {}
+
+                    printf("\tNão usar nada (ID:0)\n");
+
+                    printf("\\-------------------------\n");
+
+                    puts("\tDigite o ID do item que quer usar:\n");
+
+                    while(1){
+                    scanf("%d%*c", &x2);
+                        if (x2 == 0)
+                            break;
+                        else if (x2 == 1){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Cav.name);
+                                    ID1q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Mag.name);
+                                    ID1q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Arq.name);
+                                    ID1q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                            }
+                        else if (x2 == 2){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Cav.name);
+                                    ID2q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Mag.name);
+                                    ID2q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Arq.name);
+                                    ID2q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                        } }
+
+                }else
+                    continue;
+           }
+    }
+
+    void TurnoArqueiro () {
+
+        int x3, tm;
+        char y3, z3;
+
+        printf("O que s%s ", *Arq.eua);
+            setColor(10);
+        printf("arqueir%c", Arq.o_a);
+            setColor(7);
+        puts(" fará?\n");
+
+        printf("/---PV atual: %d----------\n"
+           " (A)\tAtacar ...........|\n"
+           " (H)\tUsar habilidade ..|\n"
+           " (I)\tUsar item ........|\n"
+           "\\-------------------------\n", ArqHP);
+
+           while(1){
+                scanf("%c", &y3);
+                if (y3 == 'A'){
+                    dano = Arq.stat[0]; // Diferentes arcos poderão causar diversos efeitos de estado
+                    EnemyHP -= dano;
+                        printf("\tS%s ", *Arq.eua);
+                            setColor(10);
+                        printf("arqueir%c", Arq.o_a);
+                            setColor(7);
+                        printf(" dá um disparo certeiro! %d pontos de dano!\n\n", dano);
+                        break;
+
+                }else if (y3 == 'H'){
+                    puts("\tQue habilidade você usará?\n");
+                    printf("/--------------------------\n"
+                           " (D)\tDisparo carregado ...|\n"
+                           " (X)\tNenhuma..............|\n"
+                           "\\-------------------------\n");
+
+                        while(1){
+                            scanf("%c%*c", &z3);
+                            if(z3 == 'D'){
+                                puts("Um disparo com toda sua força!\n");
+                                dano = 3 + Arq.stat[0];
+                                EnemyHP -= dano;
+                                printf("%d pontos de dano!", dano);
+                                break;
+                            }else if(z3 == 'X')
+                                break;
+                            }
+
+                    break;
+                }else if (y3 == 'I') {
+                    printf("\tSeu inventário\n"
+                           "/-------------------------\n");
+                    if(ID1q > 0)
+                       printf("\tPoções de cura x %d (ID:1)\n", ID1q);
+                    else {}
+
+                    if(ID2q > 0)
+                       printf("\tPães x %d (ID:2)\n", ID2q);
+                    else {}
+
+                    printf("\tNão usar nada (ID:0)\n");
+
+                    printf("\\-------------------------\n");
+
+                    puts("\tDigite o ID do item que quer usar:\n");
+
+                    while(1){
+                    scanf("%d%*c", &x3);
+                        if (x3 == 0)
+                            break;
+                        else if (x3 == 1){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Cav.name);
+                                    ID1q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Mag.name);
+                                    ID1q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 20 pontos de vida com a poção", *Arq.name);
+                                    ID1q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                        }
+                        else if (x3 == 2){
+                            puts("\tEm quem você usará o item?");
+                                setColor(12);
+                            printf("\tCavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" (1) (PV atual: %d)// ", CavHP);
+                                setColor(9);
+                            printf("Mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" (2) (PV atual: %d)// ", MagHP);
+                                setColor(10);
+                            printf("Arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" (3) (PV atual: %d)\n", ArqHP);
+
+                            while(1){
+                                scanf("%d%*c", &tm);
+                                if(tm == 1){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Cav.name);
+                                    ID2q -= 1;
+                                    CavHP += 20;
+                                    break;
+                                }else if(tm == 2){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Mag.name);
+                                    ID2q -= 1;
+                                    MagHP += 20;
+                                    break;
+                                }else if(tm == 3){
+                                    printf("%s recuperou 10 pontos de vida com o pão", *Arq.name);
+                                    ID2q -= 1;
+                                    ArqHP += 20;
+                                    break;
+                                }else
+                                    continue;  }
+                        } }
+                } else
+                    continue;
+                }
+    }
+
+    void TurnoInimigo(){
+        int a, h; // Ataque, Herói
+        if (*area == "santuario"){
+            if(tropa == 1){ // Morcegos
+                a = 1 + (rand() % 2);
+                if (a == 1) { // Ataque 1: Mordida (resistido com defesa)
+                        system("pause");
+                        puts("Os inimigos usam 'Mordida'");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 6 - (Cav.stat[2] / 2); // Dano que será enviado para o herói sorteado, nessa caso, seu cavaleiro(a)
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 6 - (Mag.stat[2] / 2); // Agora seu mago é quem leva dano
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 6 - (Arq.stat[2] / 2); // Quando evasão for implementada, nada vai acertar o arqueiro
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(12);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+
+                } else if (a == 2) { // Ataque 2: Ultrassônico (resistido com resistência)
+                    system("pause");
+                        puts("Os inimigos usam 'Ultrassônico'");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 5 - (Cav.stat[3] / 2); // Dano que será enviado para o herói sorteado, nessa caso, seu cavaleiro(a)
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 5 - (Mag.stat[3] / 2); // Agora seu mago é quem leva dano
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" \trecebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 5 - (Arq.stat[3] / 2); // Quando evasão for implementada, nada vai acertar o arqueiro
+                                ArqHP -= dano;
+                            printf("S%s ", *Arq.eua);
+                                setColor(10);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+                        }
+                }else if (tropa == 2){ // Goblin
+                    a = 1 + (rand() % 2);
+                if (a == 1) { // Ataque 1: Tacada (resistido com defesa)
+                        system("pause");
+                        puts("O inimigo usa 'Tacada'");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 6 - (Cav.stat[2] / 2); // Dano que será enviado para o herói sorteado, nessa caso, seu cavaleiro(a)
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 6 - (Mag.stat[2] / 2); // Agora seu mago é quem leva dano
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 6 - (Arq.stat[2] / 2); // Quando evasão for implementada, nada vai acertar o arqueiro
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(12);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+
+                } else if (a == 2) { // Ataque 2: Rajada de pedras (resistido com defesa)
+                    system("pause");
+                        puts("O inimigo usa 'Rajada de pedras'");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 10 - ((Cav.stat[2] * 2) / 3);
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 10 - ((Mag.stat[2] * 2)/ 3);
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 10 - ((Arq.stat[2] * 2)/ 3);
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(10);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+                        }
+                }else if (tropa == 3){ // Orc
+                    a = 1 + (rand() % 2);
+                if (a == 1) { // Ataque 1: Esmagar (resistido com defesa)
+                        system("pause");
+                        puts("O inimigo usa 'Esmagar'");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 10 - (Cav.stat[2]);
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 10 - (Mag.stat[2]);
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 10 - (Arq.stat[2]);
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(12);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+
+                } else if (a == 2) { // Ataque 2: Arremesso de pedra (resistido hibridamente)
+                    system("pause");
+                        puts("O inimigo usa 'Arremesso de pedra'\n");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 18 - (Cav.stat[2] + Cav.stat[3]);
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 18 - (Mag.stat[2] + Mag.stat[3]);
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 18 - (Arq.stat[2] + Arq.stat[3]);
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(10);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+                        }
+                }{ // Morcego
+                a = 1 + (rand() % 2);
+                if (a == 1) { // Ataque 1: Mordida (resistido com defesa)
+                        system("pause");
+                        puts("O inimigo usa 'Mordida'\n");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 3 - (Cav.stat[2] / 2);
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 6 - (Mag.stat[2] / 2);
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 6 - (Arq.stat[2] / 2);
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(12);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+
+                } else if (a == 2) { // Ataque 2: Ultrassônico (resistido com resistência)
+                    system("pause");
+                        puts("O inimigo usa 'Ultrassônico'\n");
+                    h = 1 + (rand() % 3);
+                        if (h == 1){
+                            dano = 3 - (Cav.stat[3] / 2);
+                                CavHP -= dano;
+                            printf("\tS%s ", *Cav.eua);
+                                setColor(12);
+                            printf("cavaleir%c", Cav.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else if (h == 2){
+                            dano = 5 - (Mag.stat[3] / 2);
+                                MagHP -= dano;
+                            printf("\tS%s ", *Mag.eua);
+                                setColor(9);
+                            printf("mag%c", Mag.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        } else {
+                            dano = 5 - (Arq.stat[3] / 2);
+                                ArqHP -= dano;
+                            printf("\tS%s ", *Arq.eua);
+                                setColor(10);
+                            printf("arqueir%c", Arq.o_a);
+                                setColor(7);
+                            printf(" recebe %d pontos de dano!\n", dano);
+                        }
+                        }
+                }
+
+
+                }
+        }
+
+
+    void Espolios() // Serão implementados não versão final
+    {
+    }
+
+    void Batalha_Sanctum();
+
+    int Loc_1_Sanctum ()
+    {
+        char g_m, statue;
+
+        *area = "santuario";
+
+    printf("\tA decrepta condição atual do santuário esconde a glória do que foram dias de paz.\n"
+           "\tAo se aproximar da fonte sagrada, a equipe percebe que a água divina, antes abundante,\n"
+           "\tagora mal mataria a sede dos ali presentes, o que os traz a primeira escolha da viagem: \n"
+           "\t > Vocês guardarão a água curativa em frascos para o uso comum ou farão com que seu usuário de magia\n"
+           "   canalize o pouco que sobrou no melhoramento do feitiço de cura?\n");
+
+    puts("   Garrafas! (Ganha 5 poções de cura) // Magia! (+2 de cura ao usar a magia 'Remendar') \n");
+    puts("Digite G ou M");
+
+        while(1) {
+            scanf("%c", &g_m);
+            if (g_m == 'G'){
+                ID1q += 5;
+                printf("\tA equipe enche algumas garrafas com ");
+                setColor(11);
+                printf("água sagrada");
+                setColor(7);
+                puts(", secando a fonte parada.\n"
+                     "\tEsperamos que a fonte volte a seu antigo e fortuno estado assim que o mal for banido...\n\n");
+                     break;
+
+            } else if (g_m == 'M') {
+                RemendoB +=2;
+                printf("\t%c ", Mag.O_A);
+                    setColor(9);
+                printf("mag%c", Mag.o_a);
+                    setColor(7);
+                puts(" prontamente canalisa a água restante em seu hiper-espaço arcano\n"
+                     "\tFerimentos serão mais facilmente tratados daqui pra frente\n");
+                    break;
+
+            } else { continue; } }
+
+
+            printf("\tNa saída do santuário, a equipe avista uma estátua de madeira da ");
+                setColor(13);
+            printf("Deusa\n");
+                setColor(7);
+            puts("   (Pode não parecer grande coisa, mas por se encontrar em um santuário, ela absorveu energia vital \n"
+                 "e pode aumentar a resistência de um dos seus membros)\n");
+                 puts("\tQuem deve pegá-la?");
+                 printf("\t> %c ", Cav.O_A);
+                    setColor(12);
+                printf("cavaleir%c", Cav.o_a);
+                    setColor(7);
+                printf(" (C) // > %c ", Mag.O_A);
+                    setColor(9);
+                printf("mag%c", Mag.o_a);
+                    setColor(7);
+                printf(" (M) // > %c ", Arq.O_A);
+                    setColor(10);
+                printf("arqueir%c", Arq.o_a);
+                    setColor(7);
+                printf(" (A)\n");
+
+            while(1) {
+                scanf("%c", &statue);
+                if (statue == 'C') {
+                    Cav.stat[3] += 1;
+                    printf("\tS%s ", *Cav.eua);
+                        setColor(12);
+                    printf("cavaleir%c", Cav.o_a);
+                        setColor(7);
+                    puts(" ganha 1 ponto de resistência!\n");
+                    system("pause");
+                    break;
+                } else if (statue == 'M') {
+                    Mag.stat[3] += 1;
+                    printf("\tS%s ", *Mag.eua);
+                        setColor(9);
+                    printf("mag%c", Mag.o_a);
+                        setColor(7);
+                    puts(" ganha 1 ponto de resistência!\n");
+                    system("pause");
+                    break;
+                } else if (statue == 'A') {
+                    Arq.stat[3] += 1;
+                    printf("\tS%s ", *Arq.eua);
+                        setColor(10);
+                    printf("arqueir%c", Arq.o_a);
+                        setColor(7);
+                    puts(" ganha 1 ponto de resistência!\n");
+                    system("pause");
+                    break;
+                } else { continue; } }
+
+                puts("\tApós fazerem suas preces, a equipe deixa o santuário após coletar alguns pães e parte em \n"
+                     "direção á suposta fonte do caos\n\n"
+                     "\tNão mais do que 5 minutos depois, encontram uma carruagem destroçada por monstros e se \n"
+                     "preparam para batalhar.\n\n");
+                     system("pause");
+
+                ID2q += 4;
+
+                printf("\tA partir de agora, monstros estarão em seu caminho. Antes de avançar, lhe é \n"
+                       "mostrado o inventário, assim como o estado de sua equipe (Você pode usar o rolamento do mouse\n"
+                       "para melhor visualização ou para checar qualquer parte da sua aventura até agora\n"
+                       "\tPara acessar alguma opção, digite em maíusculo a letra entre parênteses que a acompanhe\n");
+                       system("pause");
+
+        TextoInformativo();
+
+        system("pause");
+
+    puts("\n\tSe aproximando da destruição, monstros farejam a equipe e partem para o ataque!\n");
+
+    InimigoAleatorio();
+    Batalha_Sanctum();
+
+    puts("\n\tApós o primeiro encontro com inimigos, a equipe parece estar pegando o jeito da coisa.\n"
+         "Mas a horda agora considera sua presença como desagradável...\n");
+
+    InimigoAleatorio();
+    Batalha_Sanctum();
+
+    printf("\n\tPoucas criaturas das trevas se encontram de pé. Com um grito de guerra, s%", *Cav.eua);
+        setColor(12);
+    printf("cavaleir%c", Cav.o_a);
+        setColor(7);
+    puts(" contagia a equipe para o final do combate\n");
+
+    InimigoAleatorio();
+    Batalha_Sanctum();
+
+    puts("\tCom a horda de monstros dizimada, resta voltar á rota original e seguir em frente. O reino depende de\n"
+         "vocês! Pelo menos é o que a gente acha...");
+
+         puts("\n\n\tE é com muita tristeza que devo anunciar que este é o fim da versão beta\n"
+              "\tMais conteúdo já está em desenvolvimento, não se preocupe. O escopo final do projeto inclui 8 estágios, \n"
+              "\tbem maiores, e também rotas alternativas, assim como diferentes finais.\n\n"
+              "\t\tEspero que tenha se interessado pelo DDA ~~ Ysmahely Filho, programador amador\n");
+
+    }
+
+    // A seguinte função contém batalhas somente do santuário e recompensas de acordo com o local.
+    // O lar de cogumelos, por exemplo, ofereceria granadas venenosas.
+    void Batalha_Sanctum(){
+        printf("A equipe encontra ");
+
+            if(EnemyN > 1)
+                printf("um bando de ");
+            else
+                printf("um ");
+
+        printf("%s!\n", *nomeI);
+
+        while(EnemyHP > 0){
+            TurnoCavaleiro();
+            if (EnemyHP <= 0)
+                break;
+            TurnoMago();
+            if (EnemyHP <= 0)
+                break;
+            TurnoArqueiro();
+            if (EnemyHP <= 0)
+                break;
+            TurnoInimigo();
+        }
+
+        puts("\n\tO mal foi eliminado!\n");
+        //Espolios();  Só não versão final
+
+    }
+
+    void TextoInformativo() {
+        Inventario();
+        EstadoGrupo();
+    }
+
+    void Inventario () {
+        printf("\tSeu inventário\n"
+               "/-------------------------\n");
+        if(ID1q > 0)
+           printf("\tPoções de cura x %d (ID:1)\n", ID1q);
+        else {}
+
+        if(ID2q > 0)
+           printf("\tPães x %d (ID:2)\n", ID2q);
+        else {}
+
+     /*   if(ID3q > 0)
+           printf("\tPedras pontudas x %d (ID:3)\n", ID3q);
+        else {}
+
+        if(ID4q > 0)
+           printf("\tRunas de gelo x %d (ID:4)\n", ID4q);
+        else {}
+
+        if(ID5q > 0)
+           printf("\t??? x %d\n", ID5q);
+        else {}
+
+        if(ID6q > 0)
+           printf("\t??? x %d\n", ID6q);
+        else {} */ // Ainda não implementado, aguarde a versão completa
+
+        printf("\\-------------------------\n");
+    }
+
+    void EstadoGrupo () {
+
+        puts("\tEstado do grupo\n"
+           "/-------------------------\n");
+                setColor(12);
+            printf("  Cavaleir%c", Cav.o_a);
+                setColor(7);
+        printf(" %s >>\n", Cav.name);
+        printf("Ataque ....... %d\n"
+               "Magia ........ %d\n"
+               "Defesa ....... %d\n"
+               "Resistência .. %d\n"
+               "Agilidade .... %d\n"
+               "Sorte ........ %d\n", Cav.stat[0], Cav.stat[1], Cav.stat[2], Cav.stat[3], Cav.stat[4], Cav.stat[5]);
+        printf("--------------------------\n");
+
+                setColor(9);
+            printf(" Mag%c", Mag.o_a);
+                setColor(7);
+        printf(" %s >>\n", Mag.name);
+
+        printf("Ataque ....... %d\n"
+               "Magia ........ %d\n"
+               "Defesa ....... %d\n"
+               "Resistência .. %d\n"
+               "Agilidade .... %d\n"
+               "Sorte ........ %d\n", Mag.stat[0], Mag.stat[1], Mag.stat[2], Mag.stat[3], Mag.stat[4], Mag.stat[5]);
+
+        printf("--------------------------\n");
+
+                setColor(10);
+            printf(" Arqueir%c", Mag.o_a);
+                setColor(7);
+        printf(" %s >>\n", Arq.name);
+
+        printf("Ataque ....... %d\n"
+               "Magia ........ %d\n"
+               "Defesa ....... %d\n"
+               "Resistência .. %d\n"
+               "Agilidade .... %d\n"
+               "Sorte ........ %d\n", Arq.stat[0], Arq.stat[1], Arq.stat[2], Arq.stat[3], Arq.stat[4], Arq.stat[5]);
+
+        printf("\\-------------------------\n");
+    }
+
+   int main () {
+
+   CharCreation();
+
+   Loc_1_Sanctum();
+
+   //Loc_2_Village();
+
+   //Loc_3_Mushroom();
+
+   //Loc_4a_Martyrdom();
+
+   //Loc_4b_Mutagen();
+
+   //Loc_5a_Den();
+
+   //Loc_5b_City();
+
+   //Loc_6a_Ruins();
+
+   //Loc_6b1_Barracks();
+
+   //Loc_6b2_Tower();
+
+   //Loc_7a_Temple();
+
+   //Loc_7b_Pinnacle();
+
+   //Loc_8_Rift
+
+   return 0;
+   }
+
